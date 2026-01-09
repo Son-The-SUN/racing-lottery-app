@@ -291,10 +291,14 @@ class Game:
         # Generate a sine wave track
         length = 15000
         for x in range(0, length, 50):
+            # Ease in the curves so the start is straight
+            # This ensures the start line is not tilted
+            curve_intensity = min(1.0, x / 1500.0)
+            
             # Complex sine wave for interesting curves
             y = SCREEN_HEIGHT // 2 + \
-                math.sin(x * 0.002) * 200 + \
-                math.sin(x * 0.005) * 100
+                (math.sin(x * 0.002) * 200 + \
+                math.sin(x * 0.005) * 100) * curve_intensity
             points.append((x, y))
         return points
 
