@@ -136,8 +136,9 @@ class Game:
         
         self.finish_texture = load_image('finish_line.png')
         self.background_texture = load_image('background.png') # Load background
-        self.start_texture = pygame.Surface((20, 100)) # Placeholder
-        self.start_texture.fill(WHITE)
+        self.road_texture = load_image('road.png') # Load road texture
+        self.start_texture = load_image('start_line.png') # Load start line texture
+
 
         self.contestants = self.load_contestants("contestants.csv")
         self.racers = []
@@ -147,9 +148,57 @@ class Game:
         self.track_points = self.generate_track_points()
         self.camera_offset = [0, 0]
         self.zoom_level = 1.0
+
+        # Generate Full Track Surface
+        print("Generating track texture...")
+        self.track_surface = self.generate_full_track_texture()
+
+    def generate_full_track_texture(self):
+        # Determine bounds
+        max_x = 15000 + 500
+        height = SCREEN_HEIGHT
         
-        self.finished_racers = []
-        self.winner = None
+        # 1. Create Tiled Road Texture
+        # We make a surface large enough to hold the track
+        full_surf = pygame.Surface((max_x, height), pygame.SRCALPHA)
+        
+        # Tile the road texture across the entire surface
+        # Assuming road_texture is seamlessly tileable
+        rw, rh = self.road_texture.get_size()
+        for x in range(0, max_x, rw):
+            for y in range(0, height, rh):
+                full_surf.blit(self.road_texture, (x, y))
+        
+        # 2. Create Mask
+        mask_surf = pygame.Surface((max_x, height), pygame.SRCALPHA)
+        # Fill with transparent
+        mask_surf.fill((0, 0, 0, 0))
+        
+        # Draw the continuous road shape (White, full alpha)
+        # Using circles at every point for smoothness
+        track_width = 340
+        radius = int(track_width / 2)
+        
+        # Draw circles at vertices for smooth joints
+        # Optimizing: Step size 4 is probably fine for circles if radius is large
+        # But to be safe for "continuous", do step 2
+        for i in range(0, len(self.track_points), 2):
+            pt = self.track_points[i]
+            pygame.draw.circle(mask_surf, (255, 255, 255, 255), (int(pt[0]), int(pt[1])), radius)
+            
+        # Also fill gaps between circles with thick lines to be safe? 
+        # With step 2 (100px) and radius 170, circles will overlap heavily, creating a solid worm.    
+        
+        # 3. Apply Mask to Texture
+        # BLEND_RGBA_MULT: Result = Dst * Src
+        # Dst = Texture (R,G,B,A), Src = Mask (255,255,255, A_mask) or (0,0,0,0)
+        # If Mask is White with Alpha 255: Texture * 1 = Texture
+        # If Mask is Transparent (0,0,0,0): Texture * 0 = Transparent
+        
+        # To make this work, we blit MASK onto TEXTURE.
+        full_surf.blit(mask_surf, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+        
+        return full_surf
 
     def generate_track_points(self):
         points = []
@@ -291,30 +340,22 @@ class Game:
                 self.camera_offset[1] += (target_cam_y - self.camera_offset[1]) * 0.05
 
     def draw_track(self, surface, offset_x, offset_y):
-        # Draw the road as a thick line composed of polygons or overlapping circles
-        # Optimization: Only draw segments on screen
+        # Blit the pre-generated track texture
+        # Source rectangle: (camera_x, camera_y, width, height)
+        # We assume the track surface is at world coordinate (0,0)
         
-        # Track Width = 300 + borders
-        track_color = (60, 60, 60)
-        border_color = (200, 200, 200)
+        src_x = int(offset_x)
+        # For Y: Track surface HEIGHT is SCREEN_HEIGHT. Track points are Y ~ SCREEN_HEIGHT/2.
+        # So we should be able to just use render at (-offset_x, -offset_y + 0?)
         
-        # We iterate through points with step
-        for i in range(0, len(self.track_points) - 1, 4):
-            p1 = self.track_points[i]
-            p2 = self.track_points[i+1]
-            
-            # Simple visibility check
-            if p1[0] - offset_x < -100 or p1[0] - offset_x > SCREEN_WIDTH + 100:
-                continue
-                
-            pygame.draw.line(surface, track_color, 
-                             (p1[0] - offset_x, p1[1] - offset_y), 
-                             (p2[0] - offset_x, p2[1] - offset_y), 340)
-            
-            # Dashed center line? Too expensive for basic lines.
-            
-        # Draw borders (approximation)
-        # Because thick lines in pygame have rounded caps, it looks okay as continuous road
+        # Actually our track surface is (15500, SCREEN_HEIGHT). 
+        # But if the camera Y moves (as the track waves), we want to see valid things.
+        # But we rendered the track ONTO a surface of size SCREEN_HEIGHT in height.
+        # So if camera Y deviates from 0 significantly, we might see edge of surface.
+        # But 'generate_full_track_texture' uses SCREEN_HEIGHT as height.
+        # So it captures the track exactly as it would appear if camera Y=0.
+        # If camera Y moves, we just shift the blit.
+        surface.blit(self.track_surface, (-src_x, -int(offset_y)))
 
     def draw(self):
         # self.screen.fill(GREEN) # Replaced with background texture
@@ -374,11 +415,31 @@ class Game:
             # 1. Draw Track
             self.draw_track(self.screen, self.camera_offset[0], self.camera_offset[1])
             
-            # 2. Draw Start/Finish Lines (approximate)
+            # 2. Draw Start/Finish Lines
             # Start
-            start_x, start_y, _ = self.get_track_position(0, 0, 0) # Center
+            start_x, start_y, start_angle = self.get_track_position(0, 0, 0)
+            s_screen_x = start_x - self.camera_offset[0]
+            s_screen_y = start_y - self.camera_offset[1]
+            
+            if -100 < s_screen_x < SCREEN_WIDTH + 100 and -100 < s_screen_y < SCREEN_HEIGHT + 100:
+                # Scale start line to track width
+                # Track width is 340, start line texture might be different
+                start_img = pygame.transform.scale(self.start_texture, (50, 360)) # Sizing similar to finish line
+                start_img = pygame.transform.rotate(start_img, start_angle)
+                start_rect = start_img.get_rect(center=(s_screen_x, s_screen_y))
+                self.screen.blit(start_img, start_rect)
+
             # Finish
-            end_x, end_y, _ = self.get_track_position(1.0, 0, 0)
+            end_x, end_y, end_angle = self.get_track_position(1.0, 0, 0)
+            e_screen_x = end_x - self.camera_offset[0]
+            e_screen_y = end_y - self.camera_offset[1]
+            
+            if -100 < e_screen_x < SCREEN_WIDTH + 100 and -100 < e_screen_y < SCREEN_HEIGHT + 100:
+                # Scale finish line
+                finish_img = pygame.transform.scale(self.finish_texture, (50, 360))
+                finish_img = pygame.transform.rotate(finish_img, end_angle)
+                finish_rect = finish_img.get_rect(center=(e_screen_x, e_screen_y))
+                self.screen.blit(finish_img, finish_rect)
             
             # Draw Racers
             # Draw from top to bottom (y-sorting) for psuedo-depth doesn't matter much top-down
