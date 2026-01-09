@@ -21,7 +21,7 @@ class Racer:
     def move(self) -> None:
         """Move the racer forward by a random amount."""
         if not self.finished:
-            # Random movement between 1 and 3 units, with occasional bursts
+            # Random movement between 1 and 4 units, with occasional bursts
             movement = random.choices([1, 2, 3, 4], weights=[30, 40, 25, 5])[0]
             self.position += movement
             
@@ -44,6 +44,7 @@ class RacingGame:
         self.track_length = random.randint(80, 120)
         self.racers: List[Racer] = []
         self.winners: List[Tuple[int, Racer]] = []
+        self.finished_racers = set()  # Track finished racers efficiently
         self.frame_count = 0
         
     def load_contestants(self, csv_file: str) -> List[str]:
@@ -98,7 +99,7 @@ class RacingGame:
         # Show current winners
         if self.winners:
             print("\n🏆 CURRENT STANDINGS:")
-            for rank, racer in self.winners[-5:]:  # Show last 5 finishers
+            for rank, racer in self.winners[-5:]:  # Show most recent 5 finishers
                 print(f"  #{rank}: {racer.name}")
     
     def run_race(self) -> None:
@@ -121,10 +122,11 @@ class RacingGame:
                     racer.move()
                     
                     # Record winners as they finish
-                    if racer.finished and racer not in [r for _, r in self.winners]:
+                    if racer.finished and racer not in self.finished_racers:
                         rank = len(self.winners) + 1
                         racer.finish_time = self.frame_count
                         self.winners.append((rank, racer))
+                        self.finished_racers.add(racer)
             
             # Display current state
             self.display_race()
