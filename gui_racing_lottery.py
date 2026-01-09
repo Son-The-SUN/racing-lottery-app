@@ -486,7 +486,11 @@ class Game:
             head = self.ui_font.render("Leaderboard", True, GOLD)
             self.screen.blit(head, (30, 25))
             
-            live_rank = sorted(self.racers, key=lambda r: (-r.finished, -r.course_progress))
+            # Combine finished racers (in order of finish) with active racers (sorted by progress)
+            active_racers = [r for r in self.racers if not r.finished]
+            active_racers.sort(key=lambda r: r.course_progress, reverse=True)
+            live_rank = self.finished_racers + active_racers
+            
             for i, racer in enumerate(live_rank[:8]):
                 txt = self.font.render(f"{i+1}. {racer.name}", True, WHITE if i > 0 else GOLD)
                 self.screen.blit(txt, (30, 55 + i * 20))
