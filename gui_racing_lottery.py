@@ -156,7 +156,9 @@ class Game:
     def generate_full_track_texture(self):
         # Determine bounds
         max_x = 15000 + 500
-        height = SCREEN_HEIGHT
+        # Increase surface height to avoid clipping. Add padding.
+        Y_PADDING = 800
+        height = SCREEN_HEIGHT + 2 * Y_PADDING
         
         # 1. Create Tiled Road Texture
         # We make a surface large enough to hold the track
@@ -184,7 +186,10 @@ class Game:
         # But to be safe for "continuous", do step 2
         for i in range(0, len(self.track_points), 2):
             pt = self.track_points[i]
-            pygame.draw.circle(mask_surf, (255, 255, 255, 255), (int(pt[0]), int(pt[1])), radius)
+            # Shift Y coordinate by Y_PADDING to draw on center of tall surface
+            draw_y = int(pt[1] + Y_PADDING)
+            if draw_y > -radius and draw_y < height + radius:
+                 pygame.draw.circle(mask_surf, (255, 255, 255, 255), (int(pt[0]), draw_y), radius)
             
         # Also fill gaps between circles with thick lines to be safe? 
         # With step 2 (100px) and radius 170, circles will overlap heavily, creating a solid worm.    
@@ -345,17 +350,9 @@ class Game:
         # We assume the track surface is at world coordinate (0,0)
         
         src_x = int(offset_x)
-        # For Y: Track surface HEIGHT is SCREEN_HEIGHT. Track points are Y ~ SCREEN_HEIGHT/2.
-        # So we should be able to just use render at (-offset_x, -offset_y + 0?)
-        
-        # Actually our track surface is (15500, SCREEN_HEIGHT). 
-        # But if the camera Y moves (as the track waves), we want to see valid things.
-        # But we rendered the track ONTO a surface of size SCREEN_HEIGHT in height.
-        # So if camera Y deviates from 0 significantly, we might see edge of surface.
-        # But 'generate_full_track_texture' uses SCREEN_HEIGHT as height.
-        # So it captures the track exactly as it would appear if camera Y=0.
-        # If camera Y moves, we just shift the blit.
-        surface.blit(self.track_surface, (-src_x, -int(offset_y)))
+        Y_PADDING = 800
+        # Shift drawing up by Y_PADDING because the texture center is shifted down by Y_PADDING during generation
+        surface.blit(self.track_surface, (-src_x, -int(offset_y) - Y_PADDING))
 
     def draw(self):
         # self.screen.fill(GREEN) # Replaced with background texture
