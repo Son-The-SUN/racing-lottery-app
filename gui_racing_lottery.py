@@ -4,6 +4,7 @@ import random
 import sys
 import math
 import os
+import json
 
 # --- Configuration ---
 SCREEN_WIDTH = 1280
@@ -38,7 +39,7 @@ def load_image(filename):
         return surf
 
 class Racer:
-    def __init__(self, name, lane_index, total_lanes, color):
+    def __init__(self, name, lane_index, total_lanes, color, duration_multiplier=1.0):
         self.name = name
         self.course_progress = 0 # 0.0 to 1.0 (start to finish)
         self.lane_index = lane_index
@@ -46,7 +47,8 @@ class Racer:
         self.color = color
         
         self.speed = 0
-        self.base_speed = random.uniform(0.0005, 0.0008) # Progress per frame
+        # If duration_multiplier is higher (longer race), speed should be lower.
+        self.base_speed = random.uniform(0.0005, 0.0008) / max(0.1, duration_multiplier) 
         self.state = "NORMAL" # NORMAL, BOOST, STUMBLE, CRUISE
         self.state_timer = 0
         
@@ -139,6 +141,7 @@ class Game:
         self.road_texture = load_image('road.png') # Load road texture
         self.start_texture = load_image('start_line.png') # Load start line texture
 
+        self.settings = self.load_settings()
 
         self.contestants = self.load_contestants("contestants.csv")
         self.racers = []
@@ -250,6 +253,14 @@ class Game:
         
         return final_x, final_y, -math.degrees(angle)
 
+    def load_settings(self):
+        try:
+            with open('settings.json', 'r') as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Error loading settings: {e}")
+            return {"race_duration_multiplier": 1.0}
+
     def load_contestants(self, filepath):
         names = []
         try:
@@ -268,12 +279,19 @@ class Game:
         self.racers = []
         self.finished_racers = []
         self.winner = None
-        self.state = "RACING"
+        self.state = "COUNTDOWN"
+        self.countdown_start = pygame.time.get_ticks()
+        
+        dur_mult = float(self.settings.get("race_duration_multiplier", 1.0))
         
         lanes = len(self.contestants)
         for i, name in enumerate(self.contestants):
             color = (random.randint(50, 255), random.randint(50, 255), random.randint(50, 255))
-            self.racers.append(Racer(name, i, lanes, color))       
+            self.racers.append(Racer(name, i, lanes, color, dur_mult))
+        
+        # Center camera on start line
+        sx, sy, _ = self.get_track_position(0, 0, 0)
+        self.camera_offset = [sx - SCREEN_WIDTH * 0.4, sy - SCREEN_HEIGHT * 0.5]
 
     def handle_input(self):
         for event in pygame.event.get():
@@ -294,7 +312,12 @@ class Game:
                     self.state = "START_MENU"
 
     def update(self):
-        if self.state == "RACING":
+        if self.state == "COUNTDOWN":
+            now = pygame.time.get_ticks()
+            if now - self.countdown_start > 3000:
+                self.state = "RACING"
+        
+        elif self.state == "RACING":
             all_finished = True
             
             if not self.racers: return
@@ -406,7 +429,7 @@ class Game:
                 txt = self.font.render(f"{i+1}. {name}", True, (200, 200, 200))
                 self.screen.blit(txt, (60, 250 + i * 20))
                 
-        elif self.state in ["RACING", "FINISHED"]:
+        elif self.state in ["RACING", "FINISHED", "COUNTDOWN"]:
             # Virtual Camera Rendering
             
             # 1. Draw Track
@@ -483,6 +506,32 @@ class Game:
                  
                  sub = self.ui_font.render("Press 'R' for Menu", True, WHITE)
                  self.screen.blit(sub, sub.get_rect(center=(cx, cy + 60)))
+
+        if self.state == "COUNTDOWN":
+            now = pygame.time.get_ticks()
+            timeLeft = 3000 - (now - self.countdown_start)
+            if timeLeft > 0:
+                seconds = int(timeLeft / 1000) + 1
+                txt = str(seconds)
+                color = RED
+            else:
+                txt = "GO!"
+                color = GREEN
+            
+            # Big pulsing text
+            font_surf = self.large_font.render(txt, True, color)
+            # Scale up
+            scale = 3.0
+            if timeLeft > 0:
+                # Pulse effect
+                scale = 3.0 + (timeLeft % 1000) / 500.0
+            
+            start_w, start_h = font_surf.get_size()
+            if scale != 1.0:
+                font_surf = pygame.transform.scale(font_surf, (int(start_w*scale), int(start_h*scale)))
+                
+            rect = font_surf.get_rect(center=(SCREEN_WIDTH//2, SCREEN_HEIGHT//2))
+            self.screen.blit(font_surf, rect)
 
         pygame.display.flip()
 
