@@ -1,3 +1,5 @@
 {
-    "race_duration_multiplier": 1.5
+    "race_duration_multiplier": 1.0,
+    "banner_distance": 550,
+    "banner_scale": 0.2
 }

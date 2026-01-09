@@ -139,6 +139,8 @@ class Game:
         self.finish_texture = load_image('finish_line.png')
         self.background_texture = load_image('background.png') # Load background
         self.road_texture = load_image('road.png') # Load road texture
+        self.sidewalk_texture = load_image('sidewalk.png') # Load sidewalk texture
+        self.banner_texture = load_image('siewalk_banner.png') # Load banner texture
         self.start_texture = load_image('start_line.png') # Load start line texture
 
         self.settings = self.load_settings()
@@ -165,48 +167,124 @@ class Game:
         
         # 1. Create Tiled Road Texture
         # We make a surface large enough to hold the track
-        full_surf = pygame.Surface((max_x, height), pygame.SRCALPHA)
+        road_surf = pygame.Surface((max_x, height), pygame.SRCALPHA)
         
         # Tile the road texture across the entire surface
         # Assuming road_texture is seamlessly tileable
         rw, rh = self.road_texture.get_size()
         for x in range(0, max_x, rw):
             for y in range(0, height, rh):
-                full_surf.blit(self.road_texture, (x, y))
+                road_surf.blit(self.road_texture, (x, y))
+
+        # 1b. Create Tiled Sidewalk Texture
+        sidewalk_surf = pygame.Surface((max_x, height), pygame.SRCALPHA)
+        sw, sh = self.sidewalk_texture.get_size()
+        for x in range(0, max_x, sw):
+            for y in range(0, height, sh):
+                # Tint slightly for variety? Optional.
+                sidewalk_surf.blit(self.sidewalk_texture, (x, y))
+
+        # 1c. Create Banner Layer (Placed along track)
+        banner_layer = pygame.Surface((max_x, height), pygame.SRCALPHA)
         
-        # 2. Create Mask
-        mask_surf = pygame.Surface((max_x, height), pygame.SRCALPHA)
-        # Fill with transparent
-        mask_surf.fill((0, 0, 0, 0))
-        
-        # Draw the continuous road shape (White, full alpha)
-        # Using circles at every point for smoothness
+        # Logic to place banners along the spline
         track_width = 340
-        radius = int(track_width / 2)
+        road_radius = int(track_width / 2)
+        sidewalk_width_extra = 40
+        sidewalk_radius = road_radius + sidewalk_width_extra
         
+        # Place banner center right at the edge of the sidewalk
+        # Drawing order will hide the inner half
+        offset_dist = sidewalk_radius + 15 # Slight text offset
+        
+        banner_dist_setting = self.settings.get("banner_distance", 50)
+        banner_scale_setting = self.settings.get("banner_scale", 1.0)
+        
+        # Scale the banner texture
+        bw, bh = self.banner_texture.get_size()
+        scaled_banner = pygame.transform.scale(self.banner_texture, (int(bw * banner_scale_setting), int(bh * banner_scale_setting)))
+        
+        points = self.track_points
+        # Step through points. If points are 50px apart, we render a banner at each or interpolate.
+        
+        accumulated_dist = 0
+        last_banner_dist = -banner_dist_setting # Force first one to draw? Or start at 0
+        
+        for i in range(0, len(points) - 1):
+            p1 = points[i]
+            p2 = points[i+1]
+            
+            # Distance of this segment
+            seg_dx = p2[0] - p1[0]
+            seg_dy = p2[1] - p1[1]
+            seg_len = math.sqrt(seg_dx*seg_dx + seg_dy*seg_dy)
+            
+            accumulated_dist += seg_len
+            
+            if accumulated_dist - last_banner_dist >= banner_dist_setting:
+                last_banner_dist = accumulated_dist
+                
+                # Midpoint for smoother placement (or p1)
+                # Using p1 since we just crossed threshold
+                
+                # Angle of segment
+                angle = math.atan2(seg_dy, seg_dx)
+                perp_angle = angle + math.pi / 2
+                
+                # Draw coords (add Padding)
+                draw_x = p1[0]
+                draw_y = p1[1] + Y_PADDING
+                
+                # Rotate banner (Convert radians to degrees, negative for pygame)
+                deg = -math.degrees(angle)
+                rot_img = pygame.transform.rotate(scaled_banner, deg)
+                
+                # Left Side Banner
+                lx = draw_x + math.cos(perp_angle) * offset_dist
+                ly = draw_y + math.sin(perp_angle) * offset_dist
+                l_rect = rot_img.get_rect(center=(int(lx), int(ly)))
+                banner_layer.blit(rot_img, l_rect)
+                
+                # Right Side Banner
+                rx = draw_x - math.cos(perp_angle) * offset_dist
+                ry = draw_y - math.sin(perp_angle) * offset_dist
+                r_rect = rot_img.get_rect(center=(int(rx), int(ry)))
+                banner_layer.blit(rot_img, r_rect)
+        
+        # 2. Create Masks for Road and Sidewalk
+        road_mask = pygame.Surface((max_x, height), pygame.SRCALPHA)
+        road_mask.fill((0, 0, 0, 0))
+
+        sidewalk_mask = pygame.Surface((max_x, height), pygame.SRCALPHA)
+        sidewalk_mask.fill((0, 0, 0, 0))
+
+        # We don't need a banner mask anymore since we draw it explicitly
+        
+        # Draw the continuous road shape
         # Draw circles at vertices for smooth joints
-        # Optimizing: Step size 4 is probably fine for circles if radius is large
-        # But to be safe for "continuous", do step 2
         for i in range(0, len(self.track_points), 2):
             pt = self.track_points[i]
-            # Shift Y coordinate by Y_PADDING to draw on center of tall surface
             draw_y = int(pt[1] + Y_PADDING)
-            if draw_y > -radius and draw_y < height + radius:
-                 pygame.draw.circle(mask_surf, (255, 255, 255, 255), (int(pt[0]), draw_y), radius)
+            if draw_y > -sidewalk_radius and draw_y < height + sidewalk_radius:
+                 pygame.draw.circle(sidewalk_mask, (255, 255, 255, 255), (int(pt[0]), draw_y), sidewalk_radius)
+                 pygame.draw.circle(road_mask, (255, 255, 255, 255), (int(pt[0]), draw_y), road_radius)
             
-        # Also fill gaps between circles with thick lines to be safe? 
-        # With step 2 (100px) and radius 170, circles will overlap heavily, creating a solid worm.    
-        
         # 3. Apply Mask to Texture
-        # BLEND_RGBA_MULT: Result = Dst * Src
-        # Dst = Texture (R,G,B,A), Src = Mask (255,255,255, A_mask) or (0,0,0,0)
-        # If Mask is White with Alpha 255: Texture * 1 = Texture
-        # If Mask is Transparent (0,0,0,0): Texture * 0 = Transparent
         
-        # To make this work, we blit MASK onto TEXTURE.
-        full_surf.blit(mask_surf, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+        # Apply masks
+        sidewalk_surf.blit(sidewalk_mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+        road_surf.blit(road_mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
         
-        return full_surf
+        # Combine: 
+        # Bottom: Banner Layer
+        # Middle: Sidewalk
+        # Top: Road
+        
+        final_surf = banner_layer
+        final_surf.blit(sidewalk_surf, (0, 0))
+        final_surf.blit(road_surf, (0, 0))
+        
+        return final_surf
 
     def generate_track_points(self):
         points = []
@@ -259,7 +337,11 @@ class Game:
                 return json.load(f)
         except Exception as e:
             print(f"Error loading settings: {e}")
-            return {"race_duration_multiplier": 1.0}
+            return {
+                "race_duration_multiplier": 1.0,
+                "banner_distance": 50,
+                "banner_scale": 1.0
+            }
 
     def load_contestants(self, filepath):
         names = []
