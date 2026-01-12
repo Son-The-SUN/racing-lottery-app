@@ -593,8 +593,14 @@ class Game:
                 screen_y = racer.y - self.camera_offset[1]
                 
                 if -50 < screen_x < render_width + 50 and -50 < screen_y < render_height + 50:
-                    rect = racer.current_image.get_rect(center=(screen_x, screen_y))
-                    target_surf.blit(racer.current_image, rect)
+                    # Rotate the image
+                    # Note: Convert angle to degrees. racer.angle seems to be in degrees already based on get_track_position
+                    # but Pygame rotates CCW, so we might need to negate if it's not already correct.
+                    # get_track_position returns -math.degrees(angle), which is suitable for pygame if angle was math angle.
+                    
+                    rotated_img = pygame.transform.rotate(racer.current_image, racer.angle)
+                    rect = rotated_img.get_rect(center=(screen_x, screen_y))
+                    target_surf.blit(rotated_img, rect)
                     
                     # Name Tag
                     tag = self.font.render(racer.name, True, WHITE)

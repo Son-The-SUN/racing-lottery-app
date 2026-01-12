@@ -34,10 +34,20 @@ class Racer:
         # Load car
         original_car = load_image('car.png')
         self.base_image = pygame.transform.scale(original_car, (40, 20))
+        
+        # Load crash image
+        original_crash = load_image('car-crash.png')
+        self.crash_image = pygame.transform.scale(original_crash, (40, 40)) # Crash might be square/larger
+
         # Tinting
         color_surf = pygame.Surface(self.base_image.get_size()).convert_alpha()
         color_surf.fill(color)
         self.base_image.blit(color_surf, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+        
+        # Tinting crash (optional, but good for consistency)
+        crash_color_surf = pygame.Surface(self.crash_image.get_size()).convert_alpha()
+        crash_color_surf.fill(color)
+        self.crash_image.blit(crash_color_surf, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
         
         self.current_image = self.base_image
         self.x = 0
@@ -59,8 +69,9 @@ class Racer:
 
         # Handle CRASHED state
         if self.state == "CRASHED":
+             self.current_image = self.crash_image
              self.speed *= 0.9 # Rapid deceleration
-             self.visual_angle_offset += 25 # Spin
+             # self.visual_angle_offset += 25 # Spin removed
              self.state_timer -= 1
              
              # Still move a little bit based on momentum
@@ -72,6 +83,7 @@ class Racer:
              if self.state_timer <= 0:
                  self.state = "NORMAL"
                  self.visual_angle_offset = 0
+                 self.current_image = self.base_image
                  # Give a small recovery boost or just reset behavior
                  self.state_timer = 60
              return
