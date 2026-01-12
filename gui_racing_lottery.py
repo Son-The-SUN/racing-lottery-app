@@ -7,8 +7,6 @@ import os
 import json
 
 # --- Configuration ---
-SCREEN_WIDTH = 1280
-SCREEN_HEIGHT = 800
 FPS = 60
 
 # Colors
@@ -130,8 +128,8 @@ class Game:
     def __init__(self):
         pygame.init()
         self.settings = self.load_settings()
-        self.screen_width = self.settings.get("screen_width", SCREEN_WIDTH)
-        self.screen_height = self.settings.get("screen_height", SCREEN_HEIGHT)
+        self.screen_width = self.settings.get("screen_width", 1920)
+        self.screen_height = self.settings.get("screen_height", 1080)
 
         self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
         pygame.display.set_caption("Lottery Racing League")
@@ -173,7 +171,7 @@ class Game:
                          # Load and scale down a bit if too large
                          img = pygame.image.load(os.path.join(photos_dir, f)).convert_alpha()
                          w, h = img.get_size()
-                         target_size = 150 # Max dimension
+                         target_size = self.settings.get("random_photos_max_size", 600)
                          if w > target_size or h > target_size:
                             scale = target_size / max(w, h)
                             img = pygame.transform.scale(img, (int(w * scale), int(h * scale)))
@@ -185,9 +183,9 @@ class Game:
     def generate_full_track_texture(self):
         # Determine bounds
         max_x = 15000 + 500
-        # Increasself.screen_heightght to avoid clipping. Add padding.
+        # Increase height to avoid clipping. Add padding.
         Y_PADDING = 800
-        height = SCREEN_HEIGHT + 2 * Y_PADDING
+        height = self.screen_height + 2 * Y_PADDING
         
         # 1. Create Tiled Road Texture
         # We make a surface large enough to hold the track
@@ -224,7 +222,8 @@ class Game:
             # Similar to banner logic but purely random
             
             p_points = self.track_points
-            safe_dist = sidewalk_radius + 30 # Minimum distance from center
+            offset_val = self.settings.get("random_photos_offset", 30)
+            safe_dist = sidewalk_radius + offset_val # Minimum distance from center
             max_dist = safe_dist + 300 # Maximum distance from center
             
             # Use accumulated distance to space them out somewhat evenly or just random?
@@ -380,11 +379,11 @@ class Game:
         length = 15000
         for x in range(0, length, 50):
             # Ease in the curves so the start is straight
-            # Thself.screen_heighte start line is not tilted
+            # The start line is not tilted
             curve_intensity = min(1.0, x / 1500.0)
             
             # Complex sine wave for interesting curves
-            y = SCREEN_HEIGHT // 2 + \
+            y = self.screen_height // 2 + \
                 (math.sin(x * 0.002) * 200 + \
                 math.sin(x * 0.005) * 100) * curve_intensity
             points.append((x, y))
@@ -433,8 +432,10 @@ class Game:
                 "race_duration_multiplier": 1.0,
                 "random_photos_interval": 500,
                 "random_photos_scale": 1.0,
-                "screen_width": 1280,
-                "screen_height": 720,
+                "random_photos_offset": 30,
+                "screen_width": 1920,
+                "screen_height": 1080,
+                "random_image_max_size": 600,
                 "winning_car_zoom": 1.5,
                 "banner_distance": 50,
                 "banner_scale": 1.0
@@ -491,7 +492,7 @@ class Game:
                 if self.state == "START_MENU":
                     # Simple Start Button Region
                     mx, my = pygame.mouse.get_pos()
-                    btn_rect = pygame.Rect(SCREEN_WIDTH//2 - 100, SCREEN_HEIGHT//2 - 50, 200, 100)
+                    btn_rect = pygame.Rect(self.screen_width//2 - 100, self.screen_height//2 - 50, 200, 100)
                     if btn_rect.collidepoint(mx, my):
                          self.start_race()
 

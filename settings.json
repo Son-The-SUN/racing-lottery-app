@@ -2,6 +2,10 @@
     "race_duration_multiplier": 3,
     "banner_distance": 550,
     "banner_scale": 0.2,
-    "random_photos_scale": 1.5,
-    "random_photos_interval": 250
+    "random_photos_scale": 2.0,
+    "random_photos_interval": 850,
+    "random_photos_max_size": 800,
+    "random_photos_offset": 30,
+    "screen_width": 1920,
+    "screen_height": 1080
 }
