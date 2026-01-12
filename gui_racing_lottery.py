@@ -231,7 +231,7 @@ class Game:
             # User said "sprinkle ... can be at random location"
             # Let's place one every ~200-500 pixels of track length
             
-            freq_base = self.settings.get("random_photos_frequency", 500)
+            freq_base = self.settings.get("random_photos_interval", self.settings.get("random_photos_frequency", 500))
             # Ensure safe bounds
             if freq_base < 50: freq_base = 50
 
@@ -256,7 +256,8 @@ class Game:
                     photo = random.choice(self.random_photos)
                     
                     # Random rotation and scale variation
-                    scale_var = random.uniform(0.8, 1.2)
+                    base_scale = self.settings.get("random_photos_scale", 1.0)
+                    scale_var = random.uniform(0.8, 1.2) * base_scale
                     w, h = photo.get_size()
                     t_photo = pygame.transform.scale(photo, (int(w * scale_var), int(h * scale_var)))
                     # t_photo = pygame.transform.rotate(t_photo, random.randint(0, 360)) # No rotation requested
@@ -430,7 +431,8 @@ class Game:
             print(f"Error loading settings: {e}")
             return {
                 "race_duration_multiplier": 1.0,
-                "random_photos_frequency": 500,
+                "random_photos_interval": 500,
+                "random_photos_scale": 1.0,
                 "screen_width": 1280,
                 "screen_height": 720,
                 "winning_car_zoom": 1.5,

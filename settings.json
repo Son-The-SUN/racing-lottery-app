@@ -1,5 +1,7 @@
 {
     "race_duration_multiplier": 3,
     "banner_distance": 550,
-    "banner_scale": 0.2
+    "banner_scale": 0.2,
+    "random_photos_scale": 1.5,
+    "random_photos_interval": 250
 }
