@@ -7,5 +7,7 @@
     "random_photos_max_size": 800,
     "random_photos_offset": 30,
     "screen_width": 1920,
-    "screen_height": 1080
+    "screen_height": 1080,
+    "car_crash_cooldown": 2000,
+    "car_crash_chance": 0.5
 }
