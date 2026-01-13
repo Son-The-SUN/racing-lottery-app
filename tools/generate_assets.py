@@ -34,6 +34,25 @@ def create_assets():
     pygame.image.save(finish_surf, os.path.join(assets_dir, 'finish_line.png'))
     print("Created finish_line.png")
     
+    # 3. Boost Car Car (Car with flame)
+    # Generic car with a flame on the back/top
+    boost_surf = pygame.Surface((60, 30), pygame.SRCALPHA)
+    # Same body
+    pygame.draw.rect(boost_surf, (255, 255, 255), (10, 10, 50, 20), border_radius=5) # Shifted right
+    # Cabin
+    pygame.draw.rect(boost_surf, (200, 255, 255), (25, 0, 30, 15), border_radius=5)
+    # Wheels
+    pygame.draw.circle(boost_surf, (50, 50, 50), (25, 30), 8)
+    pygame.draw.circle(boost_surf, (50, 50, 50), (55, 30), 8)
+    
+    # Flame
+    # Draw a triangle pointing left
+    pygame.draw.polygon(boost_surf, (255, 100, 0), [(0, 15), (10, 10), (10, 20)])
+    pygame.draw.polygon(boost_surf, (255, 255, 0), [(3, 15), (10, 12), (10, 18)])
+    
+    pygame.image.save(boost_surf, os.path.join(assets_dir, 'car_boost.png'))
+    print("Created car_boost.png")
+
     pygame.quit()
 
 if __name__ == "__main__":

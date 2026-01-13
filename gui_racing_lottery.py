@@ -58,6 +58,16 @@ class Game:
         self.banner_texture = load_image('siewalk_banner.png') # Load banner texture
         self.start_texture = load_image('start_line.png') # Load start line texture
 
+        # Load Close Button
+        self.close_btn = load_image('button-close.png')
+        # Scale to a reasonable size
+        cw, ch = self.close_btn.get_size()
+        target_w = 100
+        scale = target_w / cw
+        self.close_btn = pygame.transform.scale(self.close_btn, (int(cw * scale), int(ch * scale)))
+        self.close_btn_rect = self.close_btn.get_rect()
+        self.close_btn_rect.topright = (self.screen_width - 20, 20)
+
         self.contestants = self.load_contestants("contestants.csv")
         self.racers = []
         
@@ -401,10 +411,16 @@ class Game:
                 sys.exit()
             
             if event.type == pygame.MOUSEBUTTONDOWN:
+                mx, my = pygame.mouse.get_pos()
+                
+                # Check Close Button Click
+                if self.close_btn_rect.collidepoint(mx, my):
+                    pygame.quit()
+                    sys.exit()
 
                 if self.state == "START_MENU":
                     # Simple Start Button Region
-                    mx, my = pygame.mouse.get_pos()
+                    # mx, my = pygame.mouse.get_pos() # Already got above
                     btn_rect = pygame.Rect(self.screen_width//2 - 100, self.screen_height//2 - 50, 200, 100)
                     if btn_rect.collidepoint(mx, my):
                          self.start_race()
@@ -671,6 +687,9 @@ class Game:
                 
             rect = font_surf.get_rect(center=(self.screen_width // 2, self.screen_height // 2))
             self.screen.blit(font_surf, rect)
+
+        # Draw UI (Top Layer)
+        self.screen.blit(self.close_btn, self.close_btn_rect)
 
         pygame.display.flip()
 

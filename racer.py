@@ -49,6 +49,15 @@ class Racer:
         crash_color_surf.fill(color)
         self.crash_image.blit(crash_color_surf, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
         
+        # Load boost image
+        original_boost = load_image('car_boost.png')
+        self.boost_image = pygame.transform.scale(original_boost, (50, 25))
+        
+        # Tinting boost
+        boost_color_surf = pygame.Surface(self.boost_image.get_size()).convert_alpha()
+        boost_color_surf.fill(color)
+        self.boost_image.blit(boost_color_surf, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+
         self.current_image = self.base_image
         self.x = 0
         self.y = 0
@@ -59,18 +68,27 @@ class Racer:
         if self.finished:
             return
 
-        # Crash Settings
+        # Crash & Boost Settings
         crash_chance = 0
         crash_cooldown = 60
+        boost_chance = 0
+        boost_duration = 60
+        boost_multiplier = 1.8
+
         if settings:
              crash_chance = settings.get("car_crash_chance", 0.003)
              # Convert ms to frames roughly (60 fps)
              crash_cooldown = int(settings.get("car_crash_cooldown", 2000) / 1000 * 60)
+             
+             boost_chance = settings.get("car_boost_chance", 0.001)
+             boost_multiplier = settings.get("car_boost_multiplier", 2.5)
+             boost_duration = int(settings.get("car_boost_duration", 1500) / 1000 * 60)
 
         # Handle CRASHED state
         if self.state == "CRASHED":
              self.current_image = self.crash_image
              self.speed *= 0.9 # Rapid deceleration
+             
              # self.visual_angle_offset += 25 # Spin removed
              self.state_timer -= 1
              
@@ -89,10 +107,18 @@ class Racer:
              return
 
         # Random Crash Trigger
-        if self.state != "FINISHED" and random.random() < crash_chance:
-            self.state = "CRASHED"
-            self.state_timer = crash_cooldown
-            return
+        if self.state != "FINISHED" and self.state != "BOOST" and self.state != "SUPER_BOOST":
+            if random.random() < crash_chance:
+                self.state = "CRASHED"
+                self.state_timer = crash_cooldown
+                return
+        
+        # Random Boost Trigger
+        if self.state == "NORMAL":
+            if random.random() < boost_chance:
+                self.state = "BOOST"
+                self.state_timer = boost_duration
+                # Fall through to apply speed
 
         # State Machine for behavior
         self.state_timer -= 1
@@ -115,8 +141,14 @@ class Racer:
         # Calculate Speed Modifiers (Rubber Banding)
         target_speed = self.base_speed
         
+        # Update Image for Boost
+        if self.state == "BOOST" or self.state == "SUPER_BOOST":
+            self.current_image = self.boost_image
+        elif self.state == "NORMAL" or self.state == "STUMBLE":
+            self.current_image = self.base_image
+        
         if self.state == "BOOST":
-            target_speed *= 1.8
+            target_speed *= boost_multiplier
         elif self.state == "SUPER_BOOST":
             target_speed *= 3.0
         elif self.state == "STUMBLE":

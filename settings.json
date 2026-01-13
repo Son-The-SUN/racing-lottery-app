@@ -9,5 +9,8 @@
     "screen_width": 1920,
     "screen_height": 1080,
     "car_crash_cooldown": 2000,
-    "car_crash_chance": 0.0005
+    "car_crash_chance": 0.0005,
+    "car_boost_multiplier": 2.5,
+    "car_boost_duration": 1500,
+    "car_boost_chance": 0.001
 }
