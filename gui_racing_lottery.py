@@ -6,7 +6,7 @@ import math
 import os
 import json
 from racer import Racer
-
+from tools import copy_random_photos
 # --- Configuration ---
 FPS = 60
 
@@ -26,6 +26,11 @@ MIN_SPEED = 5
 MAX_SPEED = 20
 
 ASSETS_DIR = os.path.join(os.path.dirname(__file__), 'assets')
+RANDOM_PHOTOS_DIR = os.path.join(ASSETS_DIR, 'random_photos')
+RANDOM_PHOTOS_SOURCE_DIR = r"C:\Users\tsont\OneDrive - Group GSA\GSA Photos"
+
+# Copy random photos if not already done
+# copy_random_photos.copyRandomPhotos(RANDOM_PHOTOS_SOURCE_DIR, RANDOM_PHOTOS_DIR, 100)
 
 def load_image(filename):
     path = os.path.join(ASSETS_DIR, filename)
@@ -50,6 +55,7 @@ class Game:
         self.font = pygame.font.SysFont("Arial", 16)
         self.ui_font = pygame.font.SysFont("Arial", 24)
         self.large_font = pygame.font.SysFont("Arial", 64)
+        self.winner_font = pygame.font.SysFont("Arial", 120)  # Bigger font for winner
         
         self.finish_texture = load_image('finish_line.png')
         self.background_texture = load_image('background.png') # Load background
@@ -71,6 +77,11 @@ class Game:
         self.contestants = self.load_contestants("contestants.csv")
         self.racers = []
         
+        # Calculate dynamic track width based on contestant count
+        # Ensure enough space for at least 50 racers
+        self.track_width = max(340, len(self.contestants) * 15)
+        self.drivable_width = self.track_width - 40
+
         self.state = "START_MENU" # START_MENU, RACING, FINISHED
         
         self.track_points = self.generate_track_points()
@@ -133,7 +144,7 @@ class Game:
         banner_layer = pygame.Surface((max_x, height), pygame.SRCALPHA)
         
         # Logic to place banners along the spline
-        track_width = 340
+        track_width = self.track_width
         road_radius = int(track_width / 2)
         sidewalk_width_extra = 40
         sidewalk_radius = road_radius + sidewalk_width_extra
@@ -336,8 +347,8 @@ class Game:
         # 90 degrees is +PI/2
         perp_angle = angle + math.pi / 2
         
-        # Track width is 400
-        lane_width = 300 / max(1, total_lanes)
+        # Track width is dynamic
+        lane_width = self.drivable_width / max(1, total_lanes)
         offset = (lane_idx - total_lanes/2) * lane_width
         
         final_x = x + math.cos(perp_angle) * offset
@@ -376,7 +387,7 @@ class Game:
         except Exception as e:
             print(f"Error loading CSV: {e}")
             names = [f"Racer {i}" for i in range(1, 21)]
-        return names[:30] 
+        return names[:60] 
 
     def start_race(self):
         self.racers = []
@@ -648,19 +659,19 @@ class Game:
 
             if self.state == "FINISHED" and self.winner:
                  # Victory Text
-                 text = self.large_font.render(f"WINNER: {self.winner.name}", True, GOLD)
+                 text = self.winner_font.render(f"WINNER: {self.winner.name}", True, RED)
                  # Shadow
-                 text_shad = self.large_font.render(f"WINNER: {self.winner.name}", True, BLACK)
+                 text_shad = self.winner_font.render(f"WINNER: {self.winner.name}", True, BLACK)
                  
-                 cx, cy = self.screen_width//2, self.screen_height//2
+                 cx, cy = self.screen_width//2, 100
                  r = text.get_rect(center=(cx, cy))
-                 rs = text_shad.get_rect(center=(cx+2, cy+2))
+                 rs = text_shad.get_rect(center=(cx+4, cy+4))
                  
                  self.screen.blit(text_shad, rs)
                  self.screen.blit(text, r)
                  
                  sub = self.ui_font.render("Press 'R' for Menu", True, WHITE)
-                 self.screen.blit(sub, sub.get_rect(center=(cx, cy + 60)))
+                 self.screen.blit(sub, sub.get_rect(center=(cx, cy + 100)))
 
         if self.state == "COUNTDOWN":
             now = pygame.time.get_ticks()
