@@ -68,10 +68,19 @@ class Racer:
         self.wants_obstacle = False
         self.pending_crash_duration = 60
         
+        # New properties for booster-based boosting
+        self.wants_boost = False
+        self.pending_boost_duration = 60
+        
     def crash(self):
         self.state = "CRASHED"
         self.state_timer = self.pending_crash_duration
         self.wants_obstacle = False
+
+    def boost(self):
+        self.state = "BOOST"
+        self.state_timer = self.pending_boost_duration
+        self.wants_boost = False
 
     def update_logic(self, rank, total_racers, leader_progress, settings=None):
         if self.finished:
@@ -137,11 +146,17 @@ class Racer:
 
         
         # Random Boost Trigger
-        if self.state == "NORMAL":
-            if random.random() < boost_chance:
-                self.state = "BOOST"
-                self.state_timer = boost_duration
-                # Fall through to apply speed
+        if self.state == "NORMAL" and not self.wants_boost and not self.wants_obstacle:
+            active_boost_chance = boost_chance
+            # Give back runners a slightly higher chance to find a boost?
+            if rank > total_racers // 2:
+                active_boost_chance *= 1.5
+
+            if random.random() < active_boost_chance:
+                self.wants_boost = True
+                self.pending_boost_duration = boost_duration
+                # Continue moving normal until pickup
+
 
         # State Machine for behavior
         self.state_timer -= 1

@@ -14,5 +14,7 @@
     "car_boost_duration": 1000,
     "car_boost_chance": 0.0008,
     "obstacle_size": 80,
-    "obstacle_generate_distance": 2000
+    "obstacle_generate_distance": 2000,
+    "booster_size": 80,
+    "booster_generate_distance": 2000
 }

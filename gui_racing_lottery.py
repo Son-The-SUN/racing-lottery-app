@@ -104,6 +104,19 @@ class Game:
                      img = pygame.transform.scale(img, (obs_size, obs_size))
                      self.obstacle_images.append(img)
 
+        # Boosters
+        self.boosters = [] # list of dicts: {progress, lane, image, x, y}
+        self.booster_images = []
+        boost_dir = os.path.join(ASSETS_DIR, 'random_booster')
+        boost_size = self.settings.get("booster_size", 40)
+        
+        if os.path.exists(boost_dir):
+            for f in os.listdir(boost_dir):
+                 if f.lower().endswith(('.png', '.jpg', '.jpeg')):
+                     img = pygame.image.load(os.path.join(boost_dir, f)).convert_alpha()
+                     img = pygame.transform.scale(img, (boost_size, boost_size))
+                     self.booster_images.append(img)
+
         # Load random photos
         self.random_photos = self.load_random_photos()
 
@@ -408,6 +421,7 @@ class Game:
     def start_race(self):
         self.racers = []
         self.obstacles = [] # Reset obstacles
+        self.boosters = [] # Reset boosters
         self.finished_racers = []
         self.winner = None
         self.state = "COUNTDOWN"
@@ -507,6 +521,25 @@ class Game:
                             'y': oy
                         })
 
+                    # Handle Booster Generation
+                    if getattr(racer, 'wants_boost', False) and self.booster_images:
+                        racer.wants_boost = False
+                        
+                        gen_dist = self.settings.get("booster_generate_distance", 1000)
+                        dist_inc = gen_dist / 15000.0
+                        boost_prog = min(0.99, racer.course_progress + dist_inc)
+                        
+                        bx, by, _ = self.get_track_position(boost_prog, racer.lane_index, racer.total_lanes)
+                        img = random.choice(self.booster_images)
+                        
+                        self.boosters.append({
+                            'progress': boost_prog,
+                            'lane': racer.lane_index,
+                            'image': img,
+                            'x': bx,
+                            'y': by
+                        })
+
                     if racer.finished:
                         racer.finish_time = pygame.time.get_ticks()
                         self.finished_racers.append(racer)
@@ -533,7 +566,19 @@ class Game:
                              # Getting rid of it avoids multiple crashes on same frame or confusing clutter
                              self.obstacles.remove(obs)
                              break
-
+                
+                # Check Booster Collisions
+                if not racer.finished and racer.state != "CRASHED":
+                     hitbox_size = self.settings.get("booster_size", 40) * 0.8
+                     
+                     for boost in self.boosters[:]:
+                         dx = racer.x - boost['x']
+                         dy = racer.y - boost['y']
+                         if abs(dx) < hitbox_size and abs(dy) < hitbox_size:
+                             if hasattr(racer, 'boost'):
+                                 racer.boost()
+                             self.boosters.remove(boost)
+                             break
             
             if self.racers:
                 leader = sorted_racers[0]
@@ -682,6 +727,16 @@ class Game:
                      if -50 < ox_screen < render_width + 50 and -50 < oy_screen < render_height + 50:
                          img = obs['image']
                          rect = img.get_rect(center=(ox_screen, oy_screen))
+                         target_surf.blit(img, rect)
+
+            # Draw Boosters
+            if self.boosters:
+                 for boost in self.boosters:
+                     bx_screen = boost['x'] - self.camera_offset[0]
+                     by_screen = boost['y'] - self.camera_offset[1]
+                     if -50 < bx_screen < render_width + 50 and -50 < by_screen < render_height + 50:
+                         img = boost['image']
+                         rect = img.get_rect(center=(bx_screen, by_screen))
                          target_surf.blit(img, rect)
 
             # Draw Racers
