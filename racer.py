@@ -108,7 +108,20 @@ class Racer:
 
         # Random Crash Trigger
         if self.state != "FINISHED" and self.state != "BOOST" and self.state != "SUPER_BOOST":
-            if random.random() < crash_chance:
+            effective_crash_chance = crash_chance
+            
+            # Leader has a much higher chance of crashing (instead of slowing down)
+            if rank == 0:
+                effective_crash_chance *= 5.0  # Significantly higher chance for the leader
+            elif rank < 3:
+                effective_crash_chance *= 2.0   # Slight increase for top 3
+            elif rank < total_racers // 2:
+                effective_crash_chance *= 1.2   # Mild increase for upper half
+            elif rank > total_racers * 0.8:
+                effective_crash_chance *= 0.5   # Decrease for back markers
+
+
+            if random.random() < effective_crash_chance:
                 self.state = "CRASHED"
                 self.state_timer = crash_cooldown
                 return
@@ -161,8 +174,9 @@ class Racer:
         dist_to_leader = leader_progress - self.course_progress
         
         if rank == 0: # Leader
-             # Limit holding the lead
-             target_speed *= 0.65 
+             # Instead of slowing down, the leader runs at near full speed
+             # but relies on the increased crash chance to give others a chance.
+             target_speed *= 0.95 
         elif rank < 3: # Constant pressure on top 3
              target_speed *= 0.85
         elif dist_to_leader > 0.15: # If fallen well behind camera

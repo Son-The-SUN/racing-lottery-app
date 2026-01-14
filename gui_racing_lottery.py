@@ -30,7 +30,7 @@ RANDOM_PHOTOS_DIR = os.path.join(ASSETS_DIR, 'random_photos')
 RANDOM_PHOTOS_SOURCE_DIR = r"C:\Users\tsont\OneDrive - Group GSA\GSA Photos"
 
 # Copy random photos if not already done
-# copy_random_photos.copyRandomPhotos(RANDOM_PHOTOS_SOURCE_DIR, RANDOM_PHOTOS_DIR, 100)
+# copy_random_photos.copyRandomPhotos(RANDOM_PHOTOS_SOURCE_DIR, RANDOM_PHOTOS_DIR, 300)
 
 def load_image(filename):
     path = os.path.join(ASSETS_DIR, filename)
