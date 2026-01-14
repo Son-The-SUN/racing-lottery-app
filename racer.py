@@ -64,6 +64,15 @@ class Racer:
         self.angle = 0
         self.visual_angle_offset = 0
         
+        # New properties for obstacle-based crashing
+        self.wants_obstacle = False
+        self.pending_crash_duration = 60
+        
+    def crash(self):
+        self.state = "CRASHED"
+        self.state_timer = self.pending_crash_duration
+        self.wants_obstacle = False
+
     def update_logic(self, rank, total_racers, leader_progress, settings=None):
         if self.finished:
             return
@@ -112,7 +121,7 @@ class Racer:
             
             # Leader has a much higher chance of crashing (instead of slowing down)
             if rank == 0:
-                effective_crash_chance *= 5.0  # Significantly higher chance for the leader
+                effective_crash_chance *= 15.0  # Significantly higher chance for the leader
             elif rank < 3:
                 effective_crash_chance *= 2.0   # Slight increase for top 3
             elif rank < total_racers // 2:
@@ -121,10 +130,11 @@ class Racer:
                 effective_crash_chance *= 0.5   # Decrease for back markers
 
 
-            if random.random() < effective_crash_chance:
-                self.state = "CRASHED"
-                self.state_timer = crash_cooldown
-                return
+            if random.random() < effective_crash_chance and not self.wants_obstacle:
+                self.wants_obstacle = True
+                self.pending_crash_duration = crash_cooldown
+                # Do not return immediately, continue moving until obstacle collision
+
         
         # Random Boost Trigger
         if self.state == "NORMAL":

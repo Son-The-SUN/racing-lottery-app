@@ -88,6 +88,22 @@ class Game:
         self.camera_offset = [0, 0]
         self.zoom_level = 1.0
 
+        # Shadows & Obstacles
+        self.obstacles = [] # list of dicts: {progress, lane, image, x, y}
+        self.obstacle_images = []
+        obs_dir = os.path.join(ASSETS_DIR, 'random_obstacle')
+        
+        # Get obstacle size from settings (default 40)
+        obs_size = self.settings.get("obstacle_size", 40)
+        
+        if os.path.exists(obs_dir):
+            for f in os.listdir(obs_dir):
+                 if f.lower().endswith(('.png', '.jpg', '.jpeg')):
+                     img = pygame.image.load(os.path.join(obs_dir, f)).convert_alpha()
+                     # Scale obstacle
+                     img = pygame.transform.scale(img, (obs_size, obs_size))
+                     self.obstacle_images.append(img)
+
         # Load random photos
         self.random_photos = self.load_random_photos()
 
@@ -391,6 +407,7 @@ class Game:
 
     def start_race(self):
         self.racers = []
+        self.obstacles = [] # Reset obstacles
         self.finished_racers = []
         self.winner = None
         self.state = "COUNTDOWN"
@@ -462,6 +479,34 @@ class Game:
                 
                 if not racer.finished:
                     racer.update_logic(rank, len(self.racers), leader_prog, self.settings)
+                    
+                    # Handle Obstacle Generation requested by racer
+                    if getattr(racer, 'wants_obstacle', False) and self.obstacle_images:
+                        racer.wants_obstacle = False
+                        
+                        # Get distance from settings (default 1000 virtual pixels)
+                        gen_dist = self.settings.get("obstacle_generate_distance", 1000)
+                        
+                        # Track is approx 15000 units long (from generate_track_points)
+                        # Convert pixel distance to progress (0.0 - 1.0)
+                        dist_inc = gen_dist / 15000.0
+                        
+                        # Add slight variance to prevent obvious patterns if multiple spawn?
+                        # dist_inc *= random.uniform(0.9, 1.1)
+
+                        obs_prog = min(0.99, racer.course_progress + dist_inc)
+                        
+                        ox, oy, _ = self.get_track_position(obs_prog, racer.lane_index, racer.total_lanes)
+                        img = random.choice(self.obstacle_images)
+                        
+                        self.obstacles.append({
+                            'progress': obs_prog,
+                            'lane': racer.lane_index,
+                            'image': img,
+                            'x': ox,
+                            'y': oy
+                        })
+
                     if racer.finished:
                         racer.finish_time = pygame.time.get_ticks()
                         self.finished_racers.append(racer)
@@ -472,6 +517,23 @@ class Game:
                 # Update position for rendering
                 rx, ry, rangle = self.get_track_position(racer.course_progress, racer.lane_index, racer.total_lanes)
                 racer.x, racer.y, racer.angle = rx, ry, rangle + getattr(racer, 'visual_angle_offset', 0)
+
+                # Check Obstacle Collisions
+                if not racer.finished and racer.state != "CRASHED":
+                     # Simple distance check based on object size
+                     hitbox_size = self.settings.get("obstacle_size", 40) * 0.7 # slightly forgiving
+                     
+                     for obs in self.obstacles[:]:
+                         dx = racer.x - obs['x']
+                         dy = racer.y - obs['y']
+                         if abs(dx) < hitbox_size and abs(dy) < hitbox_size: # Hitbox
+                             if hasattr(racer, 'crash'):
+                                 racer.crash()
+                             # Remove obstacle so others don't hit the same one immediately (or leave it?)
+                             # Getting rid of it avoids multiple crashes on same frame or confusing clutter
+                             self.obstacles.remove(obs)
+                             break
+
             
             if self.racers:
                 leader = sorted_racers[0]
@@ -612,6 +674,16 @@ class Game:
                 finish_rect = finish_img.get_rect(center=(e_screen_x, e_screen_y))
                 target_surf.blit(finish_img, finish_rect)
             
+            # Draw Obstacles (Before racers)
+            if self.obstacles:
+                 for obs in self.obstacles:
+                     ox_screen = obs['x'] - self.camera_offset[0]
+                     oy_screen = obs['y'] - self.camera_offset[1]
+                     if -50 < ox_screen < render_width + 50 and -50 < oy_screen < render_height + 50:
+                         img = obs['image']
+                         rect = img.get_rect(center=(ox_screen, oy_screen))
+                         target_surf.blit(img, rect)
+
             # Draw Racers
             # Draw from top to bottom (y-sorting) for psuedo-depth doesn't matter much top-down
             # But order matters if overlapping
