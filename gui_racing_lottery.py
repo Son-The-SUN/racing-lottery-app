@@ -416,6 +416,8 @@ class Game:
         except Exception as e:
             print(f"Error loading CSV: {e}")
             names = [f"Racer {i}" for i in range(1, 21)]
+            
+        random.shuffle(names)
         return names[:60] 
 
     def start_race(self):
