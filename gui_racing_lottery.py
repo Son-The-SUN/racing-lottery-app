@@ -114,6 +114,20 @@ class Game:
         self.close_btn_rect = self.close_btn.get_rect()
         self.close_btn_rect.topright = (self.screen_width - 20, 20)
 
+        # Load Menu Buttons
+        self.start_btn_img = load_image('button-start_race.png')
+        sw, sh = self.start_btn_img.get_size()
+        target_w = 300
+        scale = target_w / sw
+        self.start_btn_img = pygame.transform.scale(self.start_btn_img, (int(sw * scale), int(sh * scale)))
+        self.start_btn_rect = self.start_btn_img.get_rect(center=(self.screen_width//2, self.screen_height//2))
+
+        self.restart_btn_img = load_image('button-restart_race.png')
+        rw, rh = self.restart_btn_img.get_size()
+        scale = target_w / rw
+        self.restart_btn_img = pygame.transform.scale(self.restart_btn_img, (int(rw * scale), int(rh * scale)))
+        self.restart_btn_rect = self.restart_btn_img.get_rect(center=(self.screen_width//2, self.screen_height - 150))
+
         self.contestants = self.load_contestants("contestants.csv")
         self.racers = []
         
@@ -492,6 +506,16 @@ class Game:
         self.camera_offset = [sx - self.screen_width * 0.4, sy - self.screen_height * 0.5]
         self.zoom_level = 1.0
 
+    def reset_to_menu(self):
+        if self.winner and self.winner.name in self.contestants:
+            self.contestants.remove(self.winner.name)
+        self.state = "START_MENU"
+        self.zoom_level = 1.0
+        self.winner = None
+        self.racers = []
+        self.finished_racers = []
+        self.scroll_y = 0
+
     def handle_input(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -509,9 +533,12 @@ class Game:
                 if self.state == "START_MENU":
                     # Simple Start Button Region
                     # mx, my = pygame.mouse.get_pos() # Already got above
-                    btn_rect = pygame.Rect(self.screen_width//2 - 100, self.screen_height//2 - 50, 200, 100)
-                    if btn_rect.collidepoint(mx, my):
+                    if self.start_btn_rect.collidepoint(mx, my):
                          self.start_race()
+
+                if self.state == "FINISHED":
+                     if self.restart_btn_rect.collidepoint(mx, my):
+                         self.reset_to_menu()
 
             if event.type == pygame.MOUSEWHEEL:
                 if self.state == "START_MENU":
@@ -526,8 +553,7 @@ class Game:
 
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_r and self.state == "FINISHED":
-                    self.state = "START_MENU"
-                    self.zoom_level = 1.0
+                    self.reset_to_menu()
 
     def update(self):
         if self.state == "COUNTDOWN":
@@ -738,13 +764,7 @@ class Game:
             self.screen.blit(title, title_rect)
             
             # Start Button
-            btn_rect = pygame.Rect(self.screen_width//2 - 100, self.screen_height//2 - 50, 200, 100)
-            pygame.draw.rect(self.screen, RED, btn_rect, border_radius=10)
-            pygame.draw.rect(self.screen, WHITE, btn_rect, 3, border_radius=10)
-            
-            start_txt = self.ui_font.render("START RACE", True, WHITE)
-            txt_rect = start_txt.get_rect(center=btn_rect.center)
-            self.screen.blit(start_txt, txt_rect)
+            self.screen.blit(self.start_btn_img, self.start_btn_rect)
             
             # Sidebar List
             # Left panel
@@ -890,6 +910,9 @@ class Game:
                  
                  sub = self.ui_font.render("Press 'R' for Menu", True, WHITE)
                  self.screen.blit(sub, sub.get_rect(center=(cx, cy + 100)))
+
+                 # Restart Button
+                 self.screen.blit(self.restart_btn_img, self.restart_btn_rect)
 
         if self.state == "COUNTDOWN":
             now = pygame.time.get_ticks()
