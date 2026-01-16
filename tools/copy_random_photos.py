@@ -78,10 +78,12 @@ def fixPhotoOrientation(photo_path):
         print(f"Error fixing orientation for {photo_path}: {e}")
 
 
+if __name__ == "__main__":
+    
+    ASSETS_DIR = os.path.join(os.path.dirname(__file__).split("racing-lottery-app")[0], 'racing-lottery-app', 'assets')
+    RANDOM_PHOTOS_DIR = os.path.join(ASSETS_DIR, 'random_photos')
+    RANDOM_PHOTOS_SOURCE_DIR = r"C:\Users\tsont\OneDrive - Group GSA\GSA Photos"
 
-ASSETS_DIR = os.path.join(os.path.dirname(__file__).split("racing-lottery-app")[0], 'racing-lottery-app', 'assets')
-RANDOM_PHOTOS_DIR = os.path.join(ASSETS_DIR, 'random_photos')
-RANDOM_PHOTOS_SOURCE_DIR = r"C:\Users\tsont\OneDrive - Group GSA\GSA Photos"
+    # Copy random photos if not already done
+    copyRandomPhotos(RANDOM_PHOTOS_SOURCE_DIR, RANDOM_PHOTOS_DIR, 300)
 
-# Copy random photos if not already done
-copyRandomPhotos(RANDOM_PHOTOS_SOURCE_DIR, RANDOM_PHOTOS_DIR, 300)

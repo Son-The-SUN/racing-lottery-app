@@ -16,5 +16,7 @@
     "obstacle_size": 80,
     "obstacle_generate_distance": 2000,
     "booster_size": 80,
-    "booster_generate_distance": 2000
+    "booster_generate_distance": 2000,
+    "sound_effects_volume": 0.5,
+    "background_music_volume": 0.5
 }

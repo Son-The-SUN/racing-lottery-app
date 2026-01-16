@@ -6,7 +6,6 @@ import math
 import os
 import json
 from racer import Racer
-from tools import copy_random_photos
 # --- Configuration ---
 FPS = 60
 
@@ -101,6 +100,10 @@ class Game:
             except Exception as e:
                 print(f"Failed to load finish-race sound: {e}")
 
+        self.bg_music_path = os.path.join(SOUNDS_DIR, 'background-music.mp3')
+        if not os.path.exists(self.bg_music_path):
+            self.bg_music_path = None
+
         # Load Close Button
         self.close_btn = load_image('button-close.png')
         # Scale to a reasonable size
@@ -120,6 +123,7 @@ class Game:
         self.drivable_width = self.track_width - 40
 
         self.state = "START_MENU" # START_MENU, RACING, FINISHED
+        self.scroll_y = 0  # Scroll position for contestant list
         
         self.track_points = self.generate_track_points()
         self.camera_offset = [0, 0]
@@ -509,6 +513,17 @@ class Game:
                     if btn_rect.collidepoint(mx, my):
                          self.start_race()
 
+            if event.type == pygame.MOUSEWHEEL:
+                if self.state == "START_MENU":
+                    mx, my = pygame.mouse.get_pos()
+                    panel_rect = pygame.Rect(50, 200, 300, self.screen_height - 250)
+                    if panel_rect.collidepoint(mx, my):
+                         self.scroll_y -= event.y * 20
+                         total_height = len(self.contestants) * 20
+                         visible_height = panel_rect.height - 50
+                         max_scroll = max(0, total_height - visible_height)
+                         self.scroll_y = max(0, min(self.scroll_y, max_scroll))
+
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_r and self.state == "FINISHED":
                     self.state = "START_MENU"
@@ -521,6 +536,14 @@ class Game:
                 self.state = "RACING"
                 if self.start_sound:
                     self.start_sound.play()
+                
+                if self.bg_music_path:
+                    try:
+                        pygame.mixer.music.load(self.bg_music_path)
+                        pygame.mixer.music.set_volume(0.3)
+                        pygame.mixer.music.play(-1)
+                    except Exception as e:
+                        print(f"Failed to play background music: {e}")
         
         elif self.state == "RACING":
             all_finished = True
@@ -639,6 +662,7 @@ class Game:
                 self.winner = self.finished_racers[0]
                 if self.finish_sound:
                     self.finish_sound.play()
+                pygame.mixer.music.stop()
         
         elif self.state == "FINISHED":
             # Smoothly Center on Winner and Zoom
@@ -724,16 +748,35 @@ class Game:
             
             # Sidebar List
             # Left panel
-            panel_rect = pygame.Rect(50, 200, 300, self.screen_height - 250)
+            panel_height = self.screen_height - 250
+            panel_rect = pygame.Rect(50, 200, 300, panel_height)
             pygame.draw.rect(self.screen, (30, 30, 30), panel_rect, border_radius=5)
             
             header = self.ui_font.render("Contestants", True, WHITE)
             self.screen.blit(header, (60, 210))
             
+            # Clip for scrolling area
+            list_start_y = 250
+            # Ensure clip rect is within screen bounds
+            list_rect = pygame.Rect(50, list_start_y, 300, max(0, panel_height - 50))
+            
+            # Save current clip
+            original_clip = self.screen.get_clip()
+            self.screen.set_clip(list_rect)
+            
+            draw_start_y = list_start_y - self.scroll_y
+            
             for i, name in enumerate(self.contestants):
-                if 250 + i * 20 > self.screen_height - 60: break # Clip
+                y_pos = draw_start_y + i * 20
+                # Optimization: only draw if touching visible area
+                if y_pos + 20 < list_start_y: continue
+                if y_pos > 200 + panel_height: break # Below view
+                
                 txt = self.font.render(f"{i+1}. {name}", True, (200, 200, 200))
-                self.screen.blit(txt, (60, 250 + i * 20))
+                self.screen.blit(txt, (60, y_pos))
+            
+            # Restore clip
+            self.screen.set_clip(original_clip)
                 
         elif self.state in ["RACING", "FINISHED", "COUNTDOWN"]:
             # Virtual Camera Rendering
