@@ -26,11 +26,8 @@ MIN_SPEED = 5
 MAX_SPEED = 20
 
 ASSETS_DIR = os.path.join(os.path.dirname(__file__), 'assets')
-RANDOM_PHOTOS_DIR = os.path.join(ASSETS_DIR, 'random_photos')
-RANDOM_PHOTOS_SOURCE_DIR = r"C:\Users\tsont\OneDrive - Group GSA\GSA Photos"
+SOUNDS_DIR = os.path.join(os.path.dirname(__file__), 'sound_effects')
 
-# Copy random photos if not already done
-# copy_random_photos.copyRandomPhotos(RANDOM_PHOTOS_SOURCE_DIR, RANDOM_PHOTOS_DIR, 300)
 
 def load_image(filename):
     path = os.path.join(ASSETS_DIR, filename)
@@ -63,6 +60,46 @@ class Game:
         self.sidewalk_texture = load_image('sidewalk.png') # Load sidewalk texture
         self.banner_texture = load_image('siewalk_banner.png') # Load banner texture
         self.start_texture = load_image('start_line.png') # Load start line texture
+
+        # Load Sounds
+        self.crash_sound = None
+        self.boost_sound = None
+        
+        if os.path.exists(os.path.join(SOUNDS_DIR, 'car-crashed.wav')):
+            try:
+                self.crash_sound = pygame.mixer.Sound(os.path.join(SOUNDS_DIR, 'car-crashed.wav'))
+                self.crash_sound.set_volume(0.4)
+            except Exception as e:
+                print(f"Failed to load crash sound: {e}")
+
+        if os.path.exists(os.path.join(SOUNDS_DIR, 'car-boosted.wav')):
+            try:
+                self.boost_sound = pygame.mixer.Sound(os.path.join(SOUNDS_DIR, 'car-boosted.wav'))
+                self.boost_sound.set_volume(0.4)
+            except Exception as e:
+                print(f"Failed to load boost sound: {e}")
+
+        self.countdown_sound = None
+        self.start_sound = None
+        self.finish_sound = None
+
+        if os.path.exists(os.path.join(SOUNDS_DIR, 'countdown.wav')):
+            try:
+                self.countdown_sound = pygame.mixer.Sound(os.path.join(SOUNDS_DIR, 'countdown.wav'))
+            except Exception as e:
+                print(f"Failed to load countdown sound: {e}")
+
+        if os.path.exists(os.path.join(SOUNDS_DIR, 'car-starting.wav')):
+            try:
+                self.start_sound = pygame.mixer.Sound(os.path.join(SOUNDS_DIR, 'car-starting.wav'))
+            except Exception as e:
+                print(f"Failed to load car-starting sound: {e}")
+
+        if os.path.exists(os.path.join(SOUNDS_DIR, 'finish-race.wav')):
+            try:
+                self.finish_sound = pygame.mixer.Sound(os.path.join(SOUNDS_DIR, 'finish-race.wav'))
+            except Exception as e:
+                print(f"Failed to load finish-race sound: {e}")
 
         # Load Close Button
         self.close_btn = load_image('button-close.png')
@@ -429,6 +466,9 @@ class Game:
         self.state = "COUNTDOWN"
         self.countdown_start = pygame.time.get_ticks()
         
+        if self.countdown_sound:
+            self.countdown_sound.play()
+        
         dur_mult = float(self.settings.get("race_duration_multiplier", 1.0))
         
         num_racers = len(self.contestants)
@@ -479,6 +519,8 @@ class Game:
             now = pygame.time.get_ticks()
             if now - self.countdown_start > 3000:
                 self.state = "RACING"
+                if self.start_sound:
+                    self.start_sound.play()
         
         elif self.state == "RACING":
             all_finished = True
@@ -564,6 +606,7 @@ class Game:
                          if abs(dx) < hitbox_size and abs(dy) < hitbox_size: # Hitbox
                              if hasattr(racer, 'crash'):
                                  racer.crash()
+                                 if self.crash_sound: self.crash_sound.play()
                              # Remove obstacle so others don't hit the same one immediately (or leave it?)
                              # Getting rid of it avoids multiple crashes on same frame or confusing clutter
                              self.obstacles.remove(obs)
@@ -579,6 +622,7 @@ class Game:
                          if abs(dx) < hitbox_size and abs(dy) < hitbox_size:
                              if hasattr(racer, 'boost'):
                                  racer.boost()
+                                 if self.boost_sound: self.boost_sound.play()
                              self.boosters.remove(boost)
                              break
             
@@ -593,6 +637,8 @@ class Game:
             if len(self.finished_racers) == len(self.racers):
                 self.state = "FINISHED"
                 self.winner = self.finished_racers[0]
+                if self.finish_sound:
+                    self.finish_sound.play()
         
         elif self.state == "FINISHED":
             # Smoothly Center on Winner and Zoom
